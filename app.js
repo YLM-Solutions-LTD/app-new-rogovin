@@ -13,7 +13,15 @@
   }
 
   function isAllowedOrigin(origin) {
-    return HOST_ORIGINS.indexOf(origin) !== -1;
+    if (HOST_ORIGINS.indexOf(origin) !== -1) return true;
+
+    // SimplyLog is also installed on tenant-specific hosts. The iframe referrer
+    // gives us that host without trusting values supplied in the message itself.
+    try {
+      return Boolean(document.referrer) && new URL(document.referrer).origin === origin;
+    } catch (_) {
+      return false;
+    }
   }
 
   function listenForHostContext() {
@@ -24,7 +32,7 @@
       }, 7000);
 
       window.addEventListener("message", function (event) {
-        if (settled || !isAllowedOrigin(event.origin)) return;
+        if (settled || event.source !== window.parent || !isAllowedOrigin(event.origin)) return;
         try {
           var payload = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
           if (!payload || typeof payload !== "object") throw new Error("INVALID_CONTEXT");
